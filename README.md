@@ -4,7 +4,7 @@ Backend starter for the Opportunities bulk stage move assignment. The project us
 
 ## Requirements
 
-- Node.js 24 or newer
+- Node.js 24 LTS
 - npm
 
 ## Run locally
