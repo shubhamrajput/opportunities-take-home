@@ -1,6 +1,7 @@
 node_modules/
 dist/
 dist-worker/
+dist-scheduler/
 *.tsbuildinfo
 coverage/
 src/generated/prisma/

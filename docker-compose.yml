@@ -65,6 +65,23 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["node", "dist/scheduler.js"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://app:app@postgres:5432/opportunities?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:

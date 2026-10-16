@@ -8,7 +8,7 @@ NestJS backend for the Opportunities bulk stage move assignment. The initial dat
 - npm
 - Docker with Compose
 
-## Start the database, Redis, API, and worker
+## Start the database, Redis, API, scheduler, and worker
 
 ```sh
 cp .env.example .env
@@ -18,15 +18,19 @@ npm run prisma:migrate:deploy
 npm run start:dev
 ```
 
-In a second terminal, start the worker:
+In separate terminals, start the worker and scheduler:
 
 ```sh
 npm run start:worker:dev
 ```
 
-The API listens on `http://localhost:3000` by default. Redis listens on port `6379`. The API and worker connect to the same Redis queue. For a containerized run, build and start all services with `docker compose up --build`; the API and worker run in separate containers from the same image. Set `PORT` in `.env` to change the API port. After applying migrations, seed a demo workspace and pipeline:
+```sh
+npm run start:scheduler:dev
+```
 
-Bull Board is available at `http://localhost:3000/queues` for read-only inspection of the `bulk-move` queue. A NestJS scheduler checks PostgreSQL every five seconds for queued or running bulk-move jobs, then enqueues one batch task at a time. The separate worker processes up to 100 opportunities per task; the next scan can enqueue another task for a job that still has matching opportunities.
+The API listens on `http://localhost:3000` by default. Redis listens on port `6379`. The API, scheduler, and worker connect to the same Redis queue. For a containerized run, build and start all services with `docker compose up --build`; the API, scheduler, and worker run in separate containers from the same image. Run one scheduler instance unless distributed scheduler coordination is added. Set `PORT` in `.env` to change the API port. After applying migrations, seed a demo workspace and pipeline:
+
+Bull Board is available at `http://localhost:3000/queues` for read-only inspection of the `bulk-move` queue. The scheduler checks PostgreSQL every five seconds for queued or running bulk-move jobs, then enqueues one batch task at a time. The separate worker processes up to 100 opportunities per task; the next scan can enqueue another task for a job that still has matching opportunities.
 
 ```sh
 npm run seed:dev
@@ -92,7 +96,7 @@ npm run prisma:migrate:dev    # Create/apply a migration during development
 npm run prisma:migrate:deploy # Apply committed migrations
 ```
 
-`npm run db:up` starts PostgreSQL and Redis for local NestJS development. The API and worker can also be run as Docker Compose services; inside Compose they use the service names `postgres` and `redis` rather than `localhost`.
+`npm run db:up` starts PostgreSQL and Redis for local NestJS development. The API, scheduler, and worker can also be run as Docker Compose services; inside Compose they use the service names `postgres` and `redis` rather than `localhost`.
 
 The Prisma schema is in `prisma/schema.prisma`. It defines workspaces, pipelines, ordered stages, opportunities, and stage transitions. Tenant IDs are part of the database relations so an opportunity or transition cannot reference a stage or pipeline from another workspace.
 
@@ -100,4 +104,4 @@ The Prisma schema is in `prisma/schema.prisma`. It defines workspaces, pipelines
 
 Implemented: NestJS app scaffold, Prisma client setup, PostgreSQL Compose service, core schema and migrations, demo workspace seed, create/list/single-stage-move opportunity routes, atomic transition recording, bulk-move submission, database polling scheduler, batched worker processing, and a bulk-move status/progress endpoint.
 
-Scaffolded: Redis, BullMQ queue registration, separate worker bootstrap, Docker Compose API/worker services, and a read-only Bull Board dashboard. Not implemented yet: the large benchmark seeding script, benchmarks, and assignment-specific reliability tests.
+Scaffolded: Redis, BullMQ queue registration, separate scheduler and worker bootstraps, Docker Compose API/scheduler/worker services, and a read-only Bull Board dashboard. Not implemented yet: the large benchmark seeding script, benchmarks, and assignment-specific reliability tests.

@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ScheduleModule } from '@nestjs/schedule';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { ExpressAdapter } from '@bull-board/express';
 import { AppController } from './app.controller.js';
@@ -13,7 +12,6 @@ import { QueueModule } from './queue/queue.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ScheduleModule.forRoot(),
     PrismaModule,
     QueueModule,
     BullBoardModule.forRoot({ route: '/queues', adapter: ExpressAdapter }),
