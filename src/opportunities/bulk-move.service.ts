@@ -1,11 +1,17 @@
 import { createHash } from 'node:crypto';
+import { InjectQueue } from '@nestjs/bullmq';
 import {
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Queue } from 'bullmq';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../database/prisma.service.js';
+import {
+  BULK_MOVE_PLAN_REQUESTED,
+  BULK_MOVE_PLANNER_QUEUE,
+} from '../queue/queue.constants.js';
 import { BulkMoveFiltersDto, CreateBulkMoveDto } from './dto.js';
 
 type IdempotencyJob = {
@@ -17,7 +23,10 @@ type IdempotencyJob = {
 
 @Injectable()
 export class BulkMoveService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectQueue(BULK_MOVE_PLANNER_QUEUE) private readonly plannerQueue: Queue,
+  ) {}
 
   async getStatus(workspaceId: string, jobId: string) {
     const job = await this.prisma.bulkMoveJob.findFirst({
@@ -116,6 +125,7 @@ export class BulkMoveService {
         },
       });
 
+      await this.enqueueInitialBatch(job.id);
       return this.toResponse(job, false);
     } catch (error) {
       if (
@@ -140,7 +150,7 @@ export class BulkMoveService {
     });
   }
 
-  private replayOrConflict(
+  private async replayOrConflict(
     job: IdempotencyJob,
     requestHash: string,
   ) {
@@ -149,7 +159,23 @@ export class BulkMoveService {
         'Idempotency-Key was already used for a different bulk move request',
       );
     }
+    if (job.status === 'queued') {
+      await this.enqueueInitialBatch(job.id);
+    }
     return this.toResponse(job, true);
+  }
+
+  private async enqueueInitialBatch(bulkMoveJobId: string): Promise<void> {
+    await this.plannerQueue.add(
+      BULK_MOVE_PLAN_REQUESTED,
+      { bulkMoveJobId },
+      {
+        jobId: bulkMoveJobId,
+        attempts: 5,
+        backoff: { type: 'exponential', delay: 1_000 },
+        removeOnComplete: true,
+      },
+    );
   }
 
   private toResponse(

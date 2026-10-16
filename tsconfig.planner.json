@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig.build.json",
   "compilerOptions": {
-    "outDir": "./dist-scheduler"
+    "outDir": "./dist-planner"
   }
 }

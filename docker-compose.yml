@@ -52,7 +52,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["node", "dist/worker.js"]
+    command: ["node", "dist-worker/worker.js"]
     env_file: .env
     environment:
       DATABASE_URL: postgresql://app:app@postgres:5432/opportunities?schema=public
@@ -65,11 +65,11 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  scheduler:
+  planner:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["node", "dist/scheduler.js"]
+    command: ["node", "dist-planner/planner.js"]
     env_file: .env
     environment:
       DATABASE_URL: postgresql://app:app@postgres:5432/opportunities?schema=public
