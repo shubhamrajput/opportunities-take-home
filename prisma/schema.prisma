@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OpportunityStatus {
+  open
+  won
+  lost
+  abandoned
+
+  @@map("opportunity_status")
+}
+
+model Workspace {
+  id            String                  @id @default(uuid()) @db.Uuid
+  name          String
+  createdAt     DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  pipelines     Pipeline[]
+  opportunities Opportunity[]
+  transitions   OpportunityTransition[]
+
+  @@map("workspaces")
+}
+
+model Pipeline {
+  id            String                  @id @default(uuid()) @db.Uuid
+  workspaceId   String                  @map("workspace_id") @db.Uuid
+  name          String
+  createdAt     DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workspace     Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  stages        Stage[]
+  opportunities Opportunity[]
+  transitions   OpportunityTransition[]
+
+  @@unique([workspaceId, id])
+  @@unique([workspaceId, name])
+  @@map("pipelines")
+}
+
+model Stage {
+  id            String                  @id @default(uuid()) @db.Uuid
+  workspaceId   String                  @map("workspace_id") @db.Uuid
+  pipelineId    String                  @map("pipeline_id") @db.Uuid
+  name          String
+  position      Int
+  createdAt     DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  pipeline      Pipeline                @relation(fields: [workspaceId, pipelineId], references: [workspaceId, id], onDelete: Cascade)
+  opportunities Opportunity[]
+  fromMoves     OpportunityTransition[] @relation("FromStage")
+  toMoves       OpportunityTransition[] @relation("ToStage")
+
+  @@unique([workspaceId, pipelineId, id])
+  @@unique([workspaceId, pipelineId, name])
+  @@unique([pipelineId, position])
+  @@index([workspaceId, pipelineId, position])
+  @@map("stages")
+}
+
+model Opportunity {
+  id          String                  @id @default(uuid()) @db.Uuid
+  workspaceId String                  @map("workspace_id") @db.Uuid
+  pipelineId  String                  @map("pipeline_id") @db.Uuid
+  stageId     String                  @map("stage_id") @db.Uuid
+  name        String
+  value       Decimal                 @default(0) @db.Decimal(18, 2)
+  status      OpportunityStatus       @default(open)
+  ownerId     String?                 @map("owner_id") @db.Uuid
+  version     Int                     @default(0)
+  createdAt   DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workspace   Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pipeline    Pipeline                @relation(fields: [workspaceId, pipelineId], references: [workspaceId, id], onDelete: Cascade)
+  stage       Stage                   @relation(fields: [workspaceId, pipelineId, stageId], references: [workspaceId, pipelineId, id], onDelete: Restrict)
+  transitions OpportunityTransition[]
+
+  @@unique([workspaceId, id])
+  @@index([workspaceId, pipelineId, stageId, id])
+  @@index([workspaceId, status, stageId, id])
+  @@index([workspaceId, ownerId, id])
+  @@index([workspaceId, createdAt, id])
+  @@map("opportunities")
+}
+
+model OpportunityTransition {
+  id            String      @id @default(uuid()) @db.Uuid
+  workspaceId   String      @map("workspace_id") @db.Uuid
+  pipelineId    String      @map("pipeline_id") @db.Uuid
+  opportunityId String      @map("opportunity_id") @db.Uuid
+  fromStageId   String      @map("from_stage_id") @db.Uuid
+  toStageId     String      @map("to_stage_id") @db.Uuid
+  changedBy     String?     @map("changed_by")
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  workspace     Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pipeline      Pipeline    @relation(fields: [workspaceId, pipelineId], references: [workspaceId, id], onDelete: Cascade)
+  opportunity   Opportunity @relation(fields: [workspaceId, opportunityId], references: [workspaceId, id], onDelete: Cascade)
+  fromStage     Stage       @relation("FromStage", fields: [workspaceId, pipelineId, fromStageId], references: [workspaceId, pipelineId, id], onDelete: Restrict)
+  toStage       Stage       @relation("ToStage", fields: [workspaceId, pipelineId, toStageId], references: [workspaceId, pipelineId, id], onDelete: Restrict)
+
+  @@index([workspaceId, opportunityId, createdAt])
+  @@map("opportunity_transitions")
+}

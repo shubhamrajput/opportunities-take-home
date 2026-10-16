@@ -1,30 +1,39 @@
 # Opportunities Take-Home
 
-Backend starter for the Opportunities bulk stage move assignment. The project uses NestJS with TypeScript. PostgreSQL, Prisma, and BullMQ will be added as the data and background-job layers are implemented.
+NestJS backend for the Opportunities bulk stage move assignment. The initial data layer uses PostgreSQL with Prisma ORM 7 and its PostgreSQL driver adapter.
 
 ## Requirements
 
 - Node.js 24 LTS
 - npm
+- Docker with Compose
 
-## Run locally
+## Start the database and API
 
 ```sh
+cp .env.example .env
 npm install
+npm run db:up
+npm run prisma:migrate:deploy
 npm run start:dev
 ```
 
-The NestJS server listens on `http://localhost:3000` by default. Set `PORT` to change the port. The starter responds to `GET /` with `Hello World!`.
+The API listens on `http://localhost:3000` by default. Set `PORT` in `.env` to change the port. The starter currently responds to `GET /` with `Hello World!`.
 
-## Available commands
+## Database commands
 
 ```sh
-npm run build
-npm run start:dev
-npm run start:prod
-npm run lint
+npm run db:up                 # Start PostgreSQL
+npm run db:down               # Stop containers, keeping the database volume
+npm run prisma:generate       # Generate the Prisma client
+npm run prisma:migrate:dev    # Create/apply a migration during development
+npm run prisma:migrate:deploy # Apply committed migrations
 ```
+
+The Prisma schema is in `prisma/schema.prisma`. It defines workspaces, pipelines, ordered stages, opportunities, and stage transitions. Tenant IDs are part of the database relations so an opportunity or transition cannot reference a stage or pipeline from another workspace.
 
 ## Current scope
 
-This is the initial NestJS application scaffold. The assignment's API, PostgreSQL schema, Prisma integration, BullMQ worker, Docker Compose setup, seeding, and focused reliability tests have not been implemented yet.
+Implemented: NestJS app scaffold, Prisma client setup, PostgreSQL Compose service, initial database migration, and the core domain schema.
+
+Not implemented yet: opportunity API routes, the BullMQ/Redis worker, bulk-job state and processing, seeding, Docker images for the API and worker, benchmarks, and assignment-specific reliability tests.

@@ -2,6 +2,7 @@ node_modules/
 dist/
 *.tsbuildinfo
 coverage/
+src/generated/prisma/
 .env
 .env.*
 !.env.example
