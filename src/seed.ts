@@ -1,5 +1,6 @@
+import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../src/generated/prisma/client.js';
+import { PrismaClient } from './generated/prisma/client.js';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -27,14 +28,19 @@ try {
 
   await prisma.pipeline.upsert({
     where: { id: pipelineId },
-    update: { name: 'Sales Pipeline' },
+    update: { workspaceId, name: 'Sales Pipeline' },
     create: { id: pipelineId, workspaceId, name: 'Sales Pipeline' },
   });
 
   for (const stage of stages) {
     await prisma.stage.upsert({
       where: { id: stage.id },
-      update: { name: stage.name, position: stage.position },
+      update: {
+        workspaceId,
+        pipelineId,
+        name: stage.name,
+        position: stage.position,
+      },
       create: { ...stage, workspaceId, pipelineId },
     });
   }
