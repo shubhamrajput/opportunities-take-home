@@ -8,7 +8,6 @@ import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { BulkMoveFiltersDto, CreateBulkMoveDto } from './dto.js';
 
-const BULK_MOVE_REQUESTED = 'bulk_move.requested';
 type IdempotencyJob = {
   id: string;
   status: string;
@@ -19,6 +18,53 @@ type IdempotencyJob = {
 @Injectable()
 export class BulkMoveService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async getStatus(workspaceId: string, jobId: string) {
+    const job = await this.prisma.bulkMoveJob.findFirst({
+      where: { id: jobId, workspaceId },
+      select: {
+        id: true,
+        status: true,
+        total: true,
+        processed: true,
+        moved: true,
+        skipped: true,
+        failed: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!job) {
+      throw new NotFoundException('Bulk-move job not found in this workspace');
+    }
+
+    const percentage =
+      job.total === null
+        ? null
+        : job.total === 0
+          ? job.status === 'completed'
+            ? 100
+            : 0
+          : Math.min(100, Math.floor((job.processed / job.total) * 100));
+
+    return {
+      jobId: job.id,
+      status: job.status,
+      progress: {
+        processed: job.processed,
+        total: job.total,
+        percentage,
+      },
+      counts: {
+        moved: job.moved,
+        skipped: job.skipped,
+        failed: job.failed,
+      },
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+    };
+  }
 
   async submit(
     workspaceId: string,
@@ -59,26 +105,15 @@ export class BulkMoveService {
     }
 
     try {
-      const job = await this.prisma.$transaction(async (tx) => {
-        const created = await tx.bulkMoveJob.create({
-          data: {
-            workspaceId,
-            pipelineId: targetStage.pipelineId,
-            targetStageId: targetStage.id,
-            idempotencyKey,
-            requestHash,
-            filters: filters as Prisma.InputJsonObject,
-          },
-        });
-
-        await tx.outboxEvent.create({
-          data: {
-            bulkMoveJobId: created.id,
-            eventType: BULK_MOVE_REQUESTED,
-          },
-        });
-
-        return created;
+      const job = await this.prisma.bulkMoveJob.create({
+        data: {
+          workspaceId,
+          pipelineId: targetStage.pipelineId,
+          targetStageId: targetStage.id,
+          idempotencyKey,
+          requestHash,
+          filters: filters as Prisma.InputJsonObject,
+        },
       });
 
       return this.toResponse(job, false);

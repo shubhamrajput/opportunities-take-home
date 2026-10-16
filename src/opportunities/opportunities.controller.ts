@@ -39,6 +39,14 @@ export class OpportunitiesController {
     return this.bulkMoveService.submit(workspaceId, idempotencyKey, body);
   }
 
+  @Get('bulk-move/:jobId')
+  getBulkMoveStatus(
+    @WorkspaceId(WorkspaceIdPipe) workspaceId: string,
+    @Param('jobId', new ParseUUIDPipe({ version: '4' })) jobId: string,
+  ) {
+    return this.bulkMoveService.getStatus(workspaceId, jobId);
+  }
+
   @Post()
   create(
     @WorkspaceId(WorkspaceIdPipe) workspaceId: string,

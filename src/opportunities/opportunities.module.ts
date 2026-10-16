@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { BULK_MOVE_QUEUE } from '../queue/queue.constants.js';
-import { BulkMoveOutboxDispatcher } from './bulk-move-outbox-dispatcher.js';
+import { BulkMoveScheduler } from './bulk-move-scheduler.js';
 import { BulkMoveService } from './bulk-move.service.js';
 import { OpportunitiesController } from './opportunities.controller.js';
 import { OpportunitiesService } from './opportunities.service.js';
@@ -12,7 +12,7 @@ import { OpportunitiesService } from './opportunities.service.js';
   providers: [
     OpportunitiesService,
     BulkMoveService,
-    BulkMoveOutboxDispatcher,
+    BulkMoveScheduler,
   ],
 })
 export class OpportunitiesModule {}

@@ -26,7 +26,7 @@ npm run start:worker:dev
 
 The API listens on `http://localhost:3000` by default. Redis listens on port `6379`. The API and worker connect to the same Redis queue. For a containerized run, build and start all services with `docker compose up --build`; the API and worker run in separate containers from the same image. Set `PORT` in `.env` to change the API port. After applying migrations, seed a demo workspace and pipeline:
 
-Bull Board is available at `http://localhost:3000/queues` for read-only inspection of the `bulk-move` queue. It will remain empty until the bulk-move submission endpoint starts enqueueing jobs.
+Bull Board is available at `http://localhost:3000/queues` for read-only inspection of the `bulk-move` queue. A NestJS scheduler checks PostgreSQL every five seconds for queued or running bulk-move jobs, then enqueues one batch task at a time. The separate worker processes up to 100 opportunities per task; the next scan can enqueue another task for a job that still has matching opportunities.
 
 ```sh
 npm run seed:dev
@@ -61,7 +61,16 @@ curl -X PATCH http://localhost:3000/opportunities/<opportunity-id>/stage \
   -d '{"stageId":"30000000-0000-4000-8000-000000000002"}'
 ```
 
-Submit a bulk move. The API returns `202 Accepted` with a job ID. `Idempotency-Key` must be a UUIDv4; retrying the same key and request returns the same job, while reusing the key with different input returns `409 Conflict`. The job and its outbox event are saved in one PostgreSQL transaction; the API dispatcher then enqueues it in BullMQ. The worker processor is the next implementation step, so submitted jobs remain waiting in the queue for now.
+Submit a bulk move. The API returns `202 Accepted` with a job ID. `Idempotency-Key` must be a UUIDv4; retrying the same key and request returns the same job, while reusing the key with different input returns `409 Conflict`. The job is saved in PostgreSQL. The scheduler discovers it and enqueues a batch task in BullMQ. Each worker task moves up to 100 matching opportunities, records stage transitions, and updates the job counters in a transaction.
+
+Poll the job status and persisted progress using the returned `jobId`:
+
+```sh
+curl http://localhost:3000/opportunities/bulk-move/<jobId> \
+  -H 'X-Workspace-Id: <workspaceId>'
+```
+
+The response includes the job status, processed/total counts, a percentage, and moved/skipped/failed counts. It reads from PostgreSQL, so it is independent of Redis queue state.
 
 Supported filters are source `stageIds`, `ownerId`, `statuses`, inclusive `minValue`/`maxValue`, and inclusive `createdAfter`/`createdBefore` timestamps. Source stages and the target stage must belong to the same workspace pipeline.
 
@@ -89,6 +98,6 @@ The Prisma schema is in `prisma/schema.prisma`. It defines workspaces, pipelines
 
 ## Current scope
 
-Implemented: NestJS app scaffold, Prisma client setup, PostgreSQL Compose service, core schema and migrations, demo workspace seed, create/list/single-stage-move opportunity routes, atomic transition recording, and the bulk-move submission endpoint with idempotent durable jobs and an outbox dispatcher.
+Implemented: NestJS app scaffold, Prisma client setup, PostgreSQL Compose service, core schema and migrations, demo workspace seed, create/list/single-stage-move opportunity routes, atomic transition recording, bulk-move submission, database polling scheduler, batched worker processing, and a bulk-move status/progress endpoint.
 
-Scaffolded: Redis, BullMQ queue registration, separate worker bootstrap, Docker Compose API/worker services, and a read-only Bull Board dashboard. Not implemented yet: bulk-job item snapshot and processing, job progress endpoint, the large benchmark seeding script, benchmarks, and assignment-specific reliability tests.
+Scaffolded: Redis, BullMQ queue registration, separate worker bootstrap, Docker Compose API/worker services, and a read-only Bull Board dashboard. Not implemented yet: the large benchmark seeding script, benchmarks, and assignment-specific reliability tests.
