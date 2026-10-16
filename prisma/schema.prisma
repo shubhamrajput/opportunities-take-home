@@ -16,6 +16,15 @@ enum OpportunityStatus {
   @@map("opportunity_status")
 }
 
+enum BulkMoveJobStatus {
+  queued
+  running
+  completed
+  failed
+
+  @@map("bulk_move_job_status")
+}
+
 model Workspace {
   id            String                  @id @default(uuid()) @db.Uuid
   name          String
@@ -24,6 +33,7 @@ model Workspace {
   pipelines     Pipeline[]
   opportunities Opportunity[]
   transitions   OpportunityTransition[]
+  bulkMoveJobs  BulkMoveJob[]
 
   @@map("workspaces")
 }
@@ -38,6 +48,7 @@ model Pipeline {
   stages        Stage[]
   opportunities Opportunity[]
   transitions   OpportunityTransition[]
+  bulkMoveJobs  BulkMoveJob[]
 
   @@unique([workspaceId, id])
   @@unique([workspaceId])
@@ -46,17 +57,18 @@ model Pipeline {
 }
 
 model Stage {
-  id            String                  @id @default(uuid()) @db.Uuid
-  workspaceId   String                  @map("workspace_id") @db.Uuid
-  pipelineId    String                  @map("pipeline_id") @db.Uuid
-  name          String
-  position      Int
-  createdAt     DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
-  pipeline      Pipeline                @relation(fields: [workspaceId, pipelineId], references: [workspaceId, id], onDelete: Cascade)
-  opportunities Opportunity[]
-  fromMoves     OpportunityTransition[] @relation("FromStage")
-  toMoves       OpportunityTransition[] @relation("ToStage")
+  id                 String                  @id @default(uuid()) @db.Uuid
+  workspaceId        String                  @map("workspace_id") @db.Uuid
+  pipelineId         String                  @map("pipeline_id") @db.Uuid
+  name               String
+  position           Int
+  createdAt          DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  pipeline           Pipeline                @relation(fields: [workspaceId, pipelineId], references: [workspaceId, id], onDelete: Cascade)
+  opportunities      Opportunity[]
+  fromMoves          OpportunityTransition[] @relation("FromStage")
+  toMoves            OpportunityTransition[] @relation("ToStage")
+  targetBulkMoveJobs BulkMoveJob[]           @relation("BulkMoveTargetStage")
 
   @@unique([workspaceId, pipelineId, id])
   @@unique([workspaceId, pipelineId, name])
@@ -107,4 +119,48 @@ model OpportunityTransition {
 
   @@index([workspaceId, opportunityId, createdAt])
   @@map("opportunity_transitions")
+}
+
+model BulkMoveJob {
+  id             String            @id @default(uuid()) @db.Uuid
+  workspaceId    String            @map("workspace_id") @db.Uuid
+  pipelineId     String            @map("pipeline_id") @db.Uuid
+  targetStageId  String            @map("target_stage_id") @db.Uuid
+  idempotencyKey String            @map("idempotency_key") @db.VarChar(128)
+  requestHash    String            @map("request_hash") @db.Char(64)
+  filters        Json
+  status         BulkMoveJobStatus @default(queued)
+  total          Int?
+  processed      Int               @default(0)
+  moved          Int               @default(0)
+  skipped        Int               @default(0)
+  failed         Int               @default(0)
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workspace      Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pipeline       Pipeline          @relation(fields: [workspaceId, pipelineId], references: [workspaceId, id], onDelete: Cascade)
+  targetStage    Stage             @relation("BulkMoveTargetStage", fields: [workspaceId, pipelineId, targetStageId], references: [workspaceId, pipelineId, id], onDelete: Restrict)
+  outboxEvents   OutboxEvent[]
+
+  @@unique([workspaceId, id])
+  @@unique([workspaceId, idempotencyKey])
+  @@index([workspaceId, createdAt, id])
+  @@index([workspaceId, status, createdAt])
+  @@map("bulk_move_jobs")
+}
+
+model OutboxEvent {
+  id            String      @id @default(uuid()) @db.Uuid
+  bulkMoveJobId String      @map("bulk_move_job_id") @db.Uuid
+  eventType     String      @map("event_type") @db.VarChar(100)
+  attempts      Int         @default(0)
+  nextAttemptAt DateTime    @default(now()) @map("next_attempt_at") @db.Timestamptz(3)
+  publishedAt   DateTime?   @map("published_at") @db.Timestamptz(3)
+  lastError     String?     @map("last_error") @db.Text
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  bulkMoveJob   BulkMoveJob @relation(fields: [bulkMoveJobId], references: [id], onDelete: Cascade)
+
+  @@unique([bulkMoveJobId, eventType])
+  @@index([publishedAt, nextAttemptAt, createdAt])
+  @@map("outbox_events")
 }

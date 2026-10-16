@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -9,16 +11,33 @@ import {
   Query,
 } from '@nestjs/common';
 import {
+  CreateBulkMoveDto,
   CreateOpportunityDto,
   MoveOpportunityStageDto,
   OpportunityPaginationQuery,
 } from './dto.js';
+import { BulkMoveService } from './bulk-move.service.js';
+import { IdempotencyKey } from './idempotency-key.decorator.js';
 import { OpportunitiesService } from './opportunities.service.js';
 import { WorkspaceId, WorkspaceIdPipe } from './workspace-id.decorator.js';
 
 @Controller('opportunities')
 export class OpportunitiesController {
-  constructor(private readonly opportunitiesService: OpportunitiesService) {}
+  constructor(
+    private readonly opportunitiesService: OpportunitiesService,
+    private readonly bulkMoveService: BulkMoveService,
+  ) {}
+
+  @Post('bulk-move')
+  @HttpCode(HttpStatus.ACCEPTED)
+  submitBulkMove(
+    @WorkspaceId(WorkspaceIdPipe) workspaceId: string,
+    @IdempotencyKey(new ParseUUIDPipe({ version: '4' }))
+    idempotencyKey: string,
+    @Body() body: CreateBulkMoveDto,
+  ) {
+    return this.bulkMoveService.submit(workspaceId, idempotencyKey, body);
+  }
 
   @Post()
   create(

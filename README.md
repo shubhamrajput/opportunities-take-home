@@ -61,6 +61,18 @@ curl -X PATCH http://localhost:3000/opportunities/<opportunity-id>/stage \
   -d '{"stageId":"30000000-0000-4000-8000-000000000002"}'
 ```
 
+Submit a bulk move. The API returns `202 Accepted` with a job ID. `Idempotency-Key` must be a UUIDv4; retrying the same key and request returns the same job, while reusing the key with different input returns `409 Conflict`. The job and its outbox event are saved in one PostgreSQL transaction; the API dispatcher then enqueues it in BullMQ. The worker processor is the next implementation step, so submitted jobs remain waiting in the queue for now.
+
+Supported filters are source `stageIds`, `ownerId`, `statuses`, inclusive `minValue`/`maxValue`, and inclusive `createdAfter`/`createdBefore` timestamps. Source stages and the target stage must belong to the same workspace pipeline.
+
+```sh
+curl -X POST http://localhost:3000/opportunities/bulk-move \
+  -H 'Content-Type: application/json' \
+  -H 'X-Workspace-Id: 10000000-0000-4000-8000-000000000001' \
+  -H 'Idempotency-Key: 40000000-0000-4000-8000-000000000001' \
+  -d '{"targetStageId":"30000000-0000-4000-8000-000000000002","filters":{"stageIds":["30000000-0000-4000-8000-000000000001"],"statuses":["open"],"minValue":"0","createdAfter":"2025-01-01T00:00:00.000Z"}}'
+```
+
 ## Database commands
 
 ```sh
@@ -77,6 +89,6 @@ The Prisma schema is in `prisma/schema.prisma`. It defines workspaces, pipelines
 
 ## Current scope
 
-Implemented: NestJS app scaffold, Prisma client setup, PostgreSQL Compose service, core schema and migrations, demo workspace seed, create/list/single-stage-move opportunity routes, and atomic transition recording.
+Implemented: NestJS app scaffold, Prisma client setup, PostgreSQL Compose service, core schema and migrations, demo workspace seed, create/list/single-stage-move opportunity routes, atomic transition recording, and the bulk-move submission endpoint with idempotent durable jobs and an outbox dispatcher.
 
-Scaffolded: Redis, BullMQ queue registration, separate worker bootstrap, and Docker Compose API/worker services. Not implemented yet: persistent bulk-job state and processing, the outbox dispatcher, the large benchmark seeding script, benchmarks, and assignment-specific reliability tests.
+Scaffolded: Redis, BullMQ queue registration, separate worker bootstrap, Docker Compose API/worker services, and a read-only Bull Board dashboard. Not implemented yet: bulk-job item snapshot and processing, job progress endpoint, the large benchmark seeding script, benchmarks, and assignment-specific reliability tests.
