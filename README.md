@@ -38,6 +38,28 @@ Bull Board is available at `http://localhost:3000/queues` for read-only inspecti
 npm run seed:dev
 ```
 
+### Seed and measure a large bulk move
+
+Seed one workload workspace with 500,000 opportunities across 12 stages, plus five small comparison workspaces. By default, 50,000 opportunities are in the source stage for the bulk-move run, 100 are in the workload API-probe stage, and each comparison workspace has 1,000 opportunities:
+
+```sh
+npm run seed:benchmark
+```
+
+Use `--count`, `--move-count`, `--probe-count`, and `--small-workspace-count` to adjust the fixture while staying within the assignment's 500,000-row data set and the current 50,000-row move limit. The seed is repeatable: deterministic IDs mean existing rows are left in place. Before a new measurement, use `--reset` to recreate the fixture at the requested sizes and clear its transition history:
+
+```sh
+npm run seed:benchmark -- --count=500000 --move-count=50000 --probe-count=100 --small-workspace-count=1000 --reset
+```
+
+Reset deletes and recreates opportunities only in the dedicated benchmark workspaces, refuses to run while either has an active bulk-move job, and keeps previous job records. Start the API, planner, and worker, then measure the bulk move:
+
+```sh
+npm run benchmark:bulk-move
+```
+
+The measurement submits one 50,000-opportunity bulk move and polls its persisted status. While it runs, it repeatedly lists the probe stage in the large workspace and in all five small workspaces. The JSON report includes submission latency, total duration, moved opportunities per second, and p50/p95/max list latency for each workspace before and during the move. If you seeded a different move size, set `BENCHMARK_MOVE_COUNT` to the same value. Configure `API_URL`, `BENCHMARK_TIMEOUT_MS`, and `BENCHMARK_PROBE_INTERVAL_MS` if needed. Run the benchmark on an otherwise idle local setup and compare multiple runs; the measurements include local machine, database, and network overhead.
+
 ### Opportunity API
 
 All opportunity routes require an `X-Workspace-Id` header. The demo seed prints the workspace, pipeline, and stage IDs to use.
