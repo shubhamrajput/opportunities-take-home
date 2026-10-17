@@ -131,7 +131,7 @@ export class BulkMoveProcessor extends WorkerHost {
         const skipped = opportunities.length - updated.length;
         const settled = await tx.$queryRaw<ChunkResult[]>`
           UPDATE "bulk_move_jobs"
-          SET "settled_chunk_ids" = "settled_chunk_ids" || jsonb_build_array(${chunkId}),
+          SET "settled_chunk_ids" = "settled_chunk_ids" || jsonb_build_array(${chunkId}::text),
               "processed" = "processed" + ${opportunities.length},
               "moved" = "moved" + ${updated.length},
               "skipped" = "skipped" + ${skipped},
@@ -143,7 +143,7 @@ export class BulkMoveProcessor extends WorkerHost {
               "updated_at" = CURRENT_TIMESTAMP
           WHERE "id" = ${bulkMoveJobId}::uuid
             AND "status" IN ('queued'::"bulk_move_job_status", 'running'::"bulk_move_job_status")
-            AND NOT ("settled_chunk_ids" @> jsonb_build_array(${chunkId}))
+            AND NOT ("settled_chunk_ids" @> jsonb_build_array(${chunkId}::text))
           RETURNING "processed", "moved", "skipped", "total"
         `;
 
@@ -171,14 +171,14 @@ export class BulkMoveProcessor extends WorkerHost {
     try {
       await this.prisma.$queryRaw`
         UPDATE "bulk_move_jobs"
-        SET "settled_chunk_ids" = "settled_chunk_ids" || jsonb_build_array(${chunkId}),
+        SET "settled_chunk_ids" = "settled_chunk_ids" || jsonb_build_array(${chunkId}::text),
             "processed" = "processed" + ${itemCount},
             "failed" = "failed" + ${itemCount},
             "status" = 'failed'::"bulk_move_job_status",
             "updated_at" = CURRENT_TIMESTAMP
         WHERE "id" = ${bulkMoveJobId}::uuid
           AND "status" IN ('queued'::"bulk_move_job_status", 'running'::"bulk_move_job_status")
-          AND NOT ("settled_chunk_ids" @> jsonb_build_array(${chunkId}))
+          AND NOT ("settled_chunk_ids" @> jsonb_build_array(${chunkId}::text))
         RETURNING "id"
       `;
     } catch (error) {
