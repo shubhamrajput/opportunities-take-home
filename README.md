@@ -8,6 +8,18 @@ NestJS backend for the Opportunities bulk stage move assignment. The initial dat
 - npm
 - Docker with Compose
 
+## Clean-machine grading setup
+
+From the repository root, run this single command:
+
+```sh
+./scripts/grade.sh
+```
+
+It needs Docker with Compose; it does not require Node.js or npm on the host. The script creates `.env` from `.env.example` if needed, starts PostgreSQL and Redis, builds the application containers, applies migrations, seeds a small demo workspace with three opportunities, starts the API, planner, and worker, and runs the Vitest suite in a container. It exits non-zero if setup or tests fail. On success, the services remain running at `http://localhost:3000` and Bull Board at `http://localhost:3000/queues`.
+
+Stop the services with `docker compose down`. Use `docker compose down -v` when you also want to remove the local PostgreSQL and Redis data volumes.
+
 ## Start the database, Redis, API, planner, and worker
 
 ```sh

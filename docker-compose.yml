@@ -29,6 +29,41 @@ services:
       retries: 10
     restart: unless-stopped
 
+  setup:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: build
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://app:app@postgres:5432/opportunities?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    command:
+      ["sh", "-c", "npm run prisma:migrate:deploy && node dist/seed.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: build
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://app:app@postgres:5432/opportunities?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    command: ["npm", "test"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   api:
     build:
       context: .
