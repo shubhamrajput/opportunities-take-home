@@ -52,25 +52,25 @@ npm run seed:dev
 
 ### Seed and measure a large bulk move
 
-Seed one workload workspace with 500,000 opportunities across 12 stages, plus five small comparison workspaces. By default, 50,000 opportunities are in the source stage for the bulk-move run, 100 are in the workload API-probe stage, and each comparison workspace has 1,000 opportunities:
+After `./scripts/grade.sh` has started the services, seed one workload workspace with 500,000 opportunities across 12 stages, plus five small comparison workspaces. By default, 50,000 opportunities are in the source stage for the bulk-move run, 100 are in the workload API-probe stage, and each comparison workspace has 1,000 opportunities. The Docker-backed command works without host `node_modules`:
 
 ```sh
-npm run seed:benchmark
+npm run seed:benchmark:docker -- --reset
 ```
 
-Use `--count`, `--move-count`, `--probe-count`, and `--small-workspace-count` to adjust the fixture while staying within the assignment's 500,000-row data set and the current 50,000-row move limit. The seed is repeatable: deterministic IDs mean existing rows are left in place. Before a new measurement, use `--reset` to recreate the fixture at the requested sizes and clear its transition history:
+Use `--count`, `--move-count`, `--probe-count`, and `--small-workspace-count` to adjust the fixture while staying within the assignment's 500,000-row data set and the current 50,000-row move limit. The seed is repeatable: deterministic IDs mean existing rows are left in place. `--reset` recreates the fixture at the requested sizes and clears its transition history before a fresh measurement:
 
 ```sh
-npm run seed:benchmark -- --count=500000 --move-count=50000 --probe-count=100 --small-workspace-count=1000 --reset
+npm run seed:benchmark:docker -- --count=500000 --move-count=50000 --probe-count=100 --small-workspace-count=1000 --reset
 ```
 
-Reset deletes and recreates opportunities only in the dedicated benchmark workspaces, refuses to run while either has an active bulk-move job, and keeps previous job records. Start the API, planner, and worker, then measure the bulk move:
+Reset deletes and recreates opportunities only in the dedicated benchmark workspaces, refuses to run while either has an active bulk-move job, and keeps previous job records. Then measure the bulk move:
 
 ```sh
-npm run benchmark:bulk-move
+npm run benchmark:bulk-move:docker
 ```
 
-The measurement submits one 50,000-opportunity bulk move and polls its persisted status. While it runs, it repeatedly lists the probe stage in the large workspace and in all five small workspaces. The JSON report includes submission latency, total duration, moved opportunities per second, and p50/p95/max list latency for each workspace before and during the move. If you seeded a different move size, set `BENCHMARK_MOVE_COUNT` to the same value. Configure `API_URL`, `BENCHMARK_TIMEOUT_MS`, and `BENCHMARK_PROBE_INTERVAL_MS` if needed. Run the benchmark on an otherwise idle local setup and compare multiple runs; the measurements include local machine, database, and network overhead.
+The measurement submits one 50,000-opportunity bulk move and polls its persisted status. While it runs, it repeatedly lists the probe stage in the large workspace and in all five small workspaces. The JSON report includes submission latency, total duration, moved opportunities per second, and p50/p95/max list latency for each workspace before and during the move. If you seeded a different move size, set `BENCHMARK_MOVE_COUNT` in `.env` to the same value. Configure `API_URL`, `BENCHMARK_TIMEOUT_MS`, and `BENCHMARK_PROBE_INTERVAL_MS` in `.env` if needed. Run the benchmark on an otherwise idle local setup and compare multiple runs; the measurements include local machine, database, and network overhead. Host-side alternatives (`npm run seed:benchmark` and `npm run benchmark:bulk-move`) remain available after `npm ci` and require a host `DATABASE_URL` pointing to PostgreSQL on port 5433.
 
 ### Opportunity API
 
