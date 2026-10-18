@@ -57,9 +57,44 @@ export class BulkMoveService {
             : 0
           : Math.min(100, Math.floor((job.processed / job.total) * 100));
 
+    const now = Date.now();
+    const updatedAtTime = new Date(job.updatedAt).getTime();
+    const createdAtTime = new Date(job.createdAt).getTime();
+
+    const STUCK_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes with zero updates
+    let healthDiagnostic = 'healthy';
+
+    if (job.status === 'running') {
+      const timeSinceLastUpdate = now - updatedAtTime;
+      const totalElapsedTime = now - createdAtTime;
+
+      // STUCK: Status is running but no database progress/updates for over 5 minutes
+      if (
+        timeSinceLastUpdate > STUCK_THRESHOLD_MS &&
+        job.processed < (job.total ?? 0)
+      ) {
+        healthDiagnostic = 'stuck';
+      }
+      // SLOW: running but execution duration exceeds expected baseline throughput
+      else {
+        const expectedDurationMs = (job.total ?? 0) * 15; // Baseline time: ~15ms per record
+        if (
+          totalElapsedTime > expectedDurationMs * 3 &&
+          job.processed < (job.total ?? 0)
+        ) {
+          healthDiagnostic = 'slow';
+        }
+      }
+    } else if (job.status === 'failed') {
+      healthDiagnostic = 'failed';
+    } else if (job.status === 'completed') {
+      healthDiagnostic = 'completed';
+    }
+
     return {
       jobId: job.id,
       status: job.status,
+      health: healthDiagnostic,
       progress: {
         processed: job.processed,
         total: job.total,
@@ -108,7 +143,10 @@ export class BulkMoveService {
       .update(JSON.stringify({ targetStageId: targetStage.id, filters }))
       .digest('hex');
 
-    const existing = await this.findByIdempotencyKey(workspaceId, idempotencyKey);
+    const existing = await this.findByIdempotencyKey(
+      workspaceId,
+      idempotencyKey,
+    );
     if (existing) {
       return this.replayOrConflict(existing, requestHash);
     }
@@ -144,16 +182,16 @@ export class BulkMoveService {
     }
   }
 
-  private async findByIdempotencyKey(workspaceId: string, idempotencyKey: string) {
+  private async findByIdempotencyKey(
+    workspaceId: string,
+    idempotencyKey: string,
+  ) {
     return this.prisma.bulkMoveJob.findUnique({
       where: { workspaceId_idempotencyKey: { workspaceId, idempotencyKey } },
     });
   }
 
-  private async replayOrConflict(
-    job: IdempotencyJob,
-    requestHash: string,
-  ) {
+  private async replayOrConflict(job: IdempotencyJob, requestHash: string) {
     if (job.requestHash !== requestHash) {
       throw new ConflictException(
         'Idempotency-Key was already used for a different bulk move request',
@@ -207,5 +245,4 @@ export class BulkMoveService {
       ...(input.createdBefore && { createdBefore: input.createdBefore }),
     };
   }
-
 }
