@@ -58,12 +58,6 @@ After `./scripts/grade.sh` has started the services, seed one workload workspace
 npm run seed:benchmark:docker -- --reset
 ```
 
-Use `--count`, `--move-count`, `--probe-count`, and `--small-workspace-count` to adjust the fixture while staying within the assignment's 500,000-row data set and the current 50,000-row move limit. The seed is repeatable: deterministic IDs mean existing rows are left in place. `--reset` recreates the fixture at the requested sizes and clears its transition history before a fresh measurement:
-
-```sh
-npm run seed:benchmark:docker -- --count=500000 --move-count=50000 --probe-count=100 --small-workspace-count=1000 --reset
-```
-
 Reset deletes and recreates opportunities only in the dedicated benchmark workspaces, refuses to run while either has an active bulk-move job, and keeps previous job records. Then measure the bulk move:
 
 ```sh
