@@ -1,5 +1,7 @@
 node_modules
 dist
+dist-worker
+dist-planner
 .git
 .env
 .env.*
