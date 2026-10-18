@@ -31,10 +31,15 @@ describe('bulk move filters', () => {
       ownerId: 'owner-id',
       status: { in: [OpportunityStatus.open] },
     });
-    expect(where.value?.gte?.toString()).toBe('100.5');
-    expect(where.value?.lte?.toString()).toBe('500');
-    expect(where.createdAt?.gte).toEqual(new Date('2026-01-01T00:00:00.000Z'));
-    expect(where.createdAt?.lte).toEqual(new Date('2026-02-01T00:00:00.000Z'));
+    const valueRange = where.value as {
+      gte?: { toString(): string };
+      lte?: { toString(): string };
+    };
+    const createdAtRange = where.createdAt as { gte?: Date; lte?: Date };
+    expect(valueRange.gte?.toString()).toBe('100.5');
+    expect(valueRange.lte?.toString()).toBe('500');
+    expect(createdAtRange.gte).toEqual(new Date('2026-01-01T00:00:00.000Z'));
+    expect(createdAtRange.lte).toEqual(new Date('2026-02-01T00:00:00.000Z'));
   });
 
   it('parses filters stored as JSON', () => {

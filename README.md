@@ -155,4 +155,6 @@ The Prisma config loads `DATABASE_URL` from `.env` and connects to the local Com
 
 Implemented: NestJS app scaffold, Prisma client setup, PostgreSQL and Redis Compose services, core schema and migrations, demo workspace seed, opportunity routes, atomic transition recording, idempotent bulk-move submission, a planner process that snapshots and splits matching opportunity IDs and versions into BullMQ chunks, chunk workers using conditional bulk updates, persisted job status/progress, and a read-only Bull Board dashboard.
 
-Not implemented yet: assignment-specific reliability tests.
+## Video walkthrough
+
+Five-minute walkthrough of the code flow, bulk-move flow, database output: **https://vimeo.com/1236987433?share=copy&fl=sv&fe=ci**
