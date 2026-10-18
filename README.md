@@ -2,13 +2,14 @@
 
 NestJS backend for the Opportunities bulk stage move assignment. The initial data layer uses PostgreSQL with Prisma ORM 7 and its PostgreSQL driver adapter.
 
-## Requirements
+## Choose how to run the project
 
-- Node.js 24 LTS
-- npm
-- Docker with Compose
+There are two options:
 
-## Clean-machine grading setup
+- **Docker grading setup:** requires Docker with Compose. It builds and runs the API, planner, worker, PostgreSQL, and Redis containers, applies migrations, seeds demo data, and runs the tests. You do not need Node.js or npm installed on your computer.
+- **Local development:** requires Node.js 24 LTS and npm. PostgreSQL and Redis run in Docker containers; the NestJS API, planner, and worker run as local Node.js processes.
+
+## Option 1: Docker grading setup
 
 From the repository root, run this single command:
 
@@ -20,7 +21,9 @@ It needs Docker with Compose; it does not require Node.js or npm on the host. Th
 
 Stop the services with `docker compose down`. Use `docker compose down -v` when you also want to remove the local PostgreSQL and Redis data volumes.
 
-## Start the database, Redis, API, planner, and worker
+## Option 2: Local NestJS development
+
+Use this option when you want to run and edit the NestJS processes directly on your computer. It requires Node.js 24 LTS and npm; PostgreSQL and Redis still run in Docker.
 
 ```sh
 cp .env.example .env
@@ -52,19 +55,27 @@ npm run seed:dev
 
 ### Seed and measure a large bulk move
 
-After `./scripts/grade.sh` has started the services, seed one workload workspace with 500,000 opportunities across 12 stages, plus five small comparison workspaces. By default, 50,000 opportunities are in the source stage for the bulk-move run, 100 are in the workload API-probe stage, and each comparison workspace has 1,000 opportunities. The Docker-backed command works without host `node_modules`:
+Both options use the same workload: 500,000 opportunities across 12 stages in the large workspace, plus five small comparison workspaces with 1,000 opportunities each. By default, 50,000 opportunities are in the source stage and 100 are in the large workspace's API-probe stage.
+
+#### Docker benchmark commands
+
+First start the services with `./scripts/grade.sh`. These commands run the seed and benchmark inside the API container, so host `node_modules` are not needed:
 
 ```sh
 npm run seed:benchmark:docker -- --reset
-```
-
-Reset deletes and recreates opportunities only in the dedicated benchmark workspaces, refuses to run while either has an active bulk-move job, and keeps previous job records. Then measure the bulk move:
-
-```sh
 npm run benchmark:bulk-move:docker
 ```
 
-The measurement submits one 50,000-opportunity bulk move and polls its persisted status. While it runs, it repeatedly lists the probe stage in the large workspace and in all five small workspaces. The JSON report includes submission latency, total duration, moved opportunities per second, and p50/p95/max list latency for each workspace before and during the move. If you seeded a different move size, set `BENCHMARK_MOVE_COUNT` in `.env` to the same value. Configure `API_URL`, `BENCHMARK_TIMEOUT_MS`, and `BENCHMARK_PROBE_INTERVAL_MS` in `.env` if needed. Run the benchmark on an otherwise idle local setup and compare multiple runs; the measurements include local machine, database, and network overhead. Host-side alternatives (`npm run seed:benchmark` and `npm run benchmark:bulk-move`) remain available after `npm ci` and require a host `DATABASE_URL` pointing to PostgreSQL on port 5433.
+#### Local benchmark commands
+
+For local development, start PostgreSQL, Redis, the API, planner, and worker using the steps above. Install dependencies with `npm install`, and make sure `.env` points `DATABASE_URL` to the host-mapped PostgreSQL port `5433`. Then run:
+
+```sh
+npm run seed:benchmark -- --reset
+npm run benchmark:bulk-move
+```
+
+Reset deletes and recreates opportunities only in the dedicated benchmark workspaces, refuses to run while either has an active bulk-move job, and keeps previous job records. Each measurement submits one 50,000-opportunity bulk move and polls its persisted status. While it runs, it lists the probe stage in the large workspace and all five small workspaces. The JSON report includes submission latency, duration, throughput, and p50/p95/max list latency for each workspace before and during the move. Run the benchmark on an otherwise idle machine and compare multiple runs; results include local machine, database, and network overhead.
 
 ### Opportunity API
 
