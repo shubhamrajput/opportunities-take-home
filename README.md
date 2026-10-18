@@ -158,3 +158,4 @@ Implemented: NestJS app scaffold, Prisma client setup, PostgreSQL and Redis Comp
 ## Video walkthrough
 
 Five-minute walkthrough of the code flow, bulk-move flow, database output: **https://vimeo.com/1236987433?share=copy&fl=sv&fe=ci**
+Kill worker process and resume activity - **https://vimeo.com/1237002887?share=copy&fl=sv&fe=ci**
