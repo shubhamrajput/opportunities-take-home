@@ -130,6 +130,16 @@ npm run prisma:migrate:deploy # Apply committed migrations
 
 The Prisma schema is in `prisma/schema.prisma`. It defines workspaces, pipelines, ordered stages, opportunities, and stage transitions. Tenant IDs are part of the database relations so an opportunity or transition cannot reference a stage or pipeline from another workspace.
 
+### View the database with Prisma Studio
+
+With dependencies installed and PostgreSQL running, start Prisma Studio from the repository root:
+
+```sh
+npx prisma studio
+```
+
+The Prisma config loads `DATABASE_URL` from `.env` and connects to the local Compose database on port `5433`. Studio opens in your browser and lets you browse the tables and records. Stop it with `Ctrl+C`.
+
 ## Current scope
 
 Implemented: NestJS app scaffold, Prisma client setup, PostgreSQL and Redis Compose services, core schema and migrations, demo workspace seed, opportunity routes, atomic transition recording, idempotent bulk-move submission, a planner process that snapshots and splits matching opportunity IDs and versions into BullMQ chunks, chunk workers using conditional bulk updates, persisted job status/progress, and a read-only Bull Board dashboard.
